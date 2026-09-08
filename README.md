@@ -50,5 +50,5 @@ YouTube Data API v3로 그룹명, 앨범명, 발매일이 주어지면
 ## 사용 기술
 
 - Python (pandas, numpy, scikit-learn, statsmodels)
-- CatBoost, Optuna(하이퍼파라미터 튜닝), SHAP
+- CatBoost, Optuna, SHAP
 - n8n, YouTube Data API v3
