@@ -26,12 +26,12 @@ K-pop 아이돌/밴드/솔로 아티스트 앨범의 **첫 주(초동) 판매량
   이전 컴백 이력(콘서트, 뮤직비디오, 빌보드 순위, 직전 초동 판매량 등),
   앨범 메타데이터(트랙 수, 발매월, 앨범 타입 등)로 구성
 
-## 2. EDA — [`eda.ipynb`](eda.ipynb)
+## 2. EDA
 
 - 결측치 구조 및 변수별 타겟(초동 판매량) 분포 및 패턴 분석
 - SNS 지표 간 다중공선성 진단
   
-## 3. 모델링 — [`modeling.ipynb`](modeling.ipynb)
+## 3. 모델링
 
 1. **실험 비교**: 결측 대체 방식(원본/의미적 결측 대체/PCA) × fold 수(5/10)를 조합한 CatBoost
    회귀 실험. 각 조합마다 Optuna로 하이퍼파라미터를 튜닝하고 K-Fold CV로 RMSE/MAE/R²를
@@ -40,7 +40,7 @@ K-pop 아이돌/밴드/솔로 아티스트 앨범의 **첫 주(초동) 판매량
    Feature Importance / Partial Dependence Plot / SHAP으로 모델 해석.
 
 
-## 4. 데이터 수집 자동화 — [`data_collection/`](data_collection/)
+## 4. 데이터 수집 자동화
 
 앨범별 유튜브 티저 영상의 조회수/댓글 수/좋아요 수를 직접 수집했던 과정을 n8n 워크플로우로 자동화하였습니다. 
 YouTube Data API v3로 그룹명, 앨범명, 발매일이 주어지면 
