@@ -1,0 +1,558 @@
+{
+  "name": "FNC 앨범 유튜브 티저 데이터 수집",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9f96a531-dc3d-4992-9c95-f26ee249cc93",
+      "name": "수동 실행",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.spreadsheetId }}",
+          "mode": "list",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "input",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "8a64dfef-16a9-4eaa-a39e-c82134b2c542",
+      "name": "앨범 목록 불러오기",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -1160,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "9dd6c76f-e0cd-4f70-ac50-a3f947b59608",
+              "leftValue": "={{ $json.발매일 }}",
+              "rightValue": "2019-12-01",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            },
+            {
+              "id": "9908d54b-10c8-4413-b987-d5ed3790197d",
+              "leftValue": "={{ $json.발매일 }}",
+              "rightValue": "2026-06-30",
+              "operator": {
+                "type": "dateTime",
+                "operation": "beforeOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c7703610-4ddf-4a8a-8256-103beebbe1db",
+      "name": "발매일 필터",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "979c6a29-9a4f-477e-9478-4e0b48b1847c",
+      "name": "1건씩 처리",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.그룹명 + ' ' + $json.앨범명 + ' teaser' }}"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "order",
+              "value": "relevance"
+            },
+            {
+              "name": "maxResults",
+              "value": "5"
+            },
+            {
+              "name": "publishedBefore",
+              "value": "={{ $json.발매일 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a187f111-ee62-4923-9c7c-e64fe6e01ec3",
+      "name": "유튜브 티저 영상 검색",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -420,
+        200
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "2",
+          "name": "YouTube Data API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const releaseDate = new Date($('1건씩 처리').item.json.발매일);\nconst items = $input.first().json.items || [];\n\nconst keyword = /teaser|티저/i;\n\nlet candidates = items.filter(v => keyword.test(v.snippet.title));\nif (candidates.length === 0) candidates = items;\n\nlet best = null;\nlet bestDiff = Infinity;\nfor (const v of candidates) {\n  const publishedAt = new Date(v.snippet.publishedAt);\n  const diff = Math.abs(releaseDate - publishedAt);\n  if (diff < bestDiff) {\n    bestDiff = diff;\n    best = v;\n  }\n}\n\nif (!best) {\n  return [{ json: { found: false, videoId: null, videoTitle: null } }];\n}\n\nreturn [{\n  json: {\n    found: true,\n    videoId: best.id.videoId,\n    videoTitle: best.snippet.title,\n    videoPublishedAt: best.snippet.publishedAt\n  }\n}];"
+      },
+      "id": "40cd758d-8351-4e46-a91a-63075e816531",
+      "name": "가장 적합한 영상 선택",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "26b195b3-cf33-4a3a-8624-104ed5289475",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2ccdac69-3c1f-4967-a005-c136e4c198e9",
+      "name": "영상 찾음?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        60,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.videoId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f67c57dd-8354-4d8f-87af-31c8c3cb08ea",
+      "name": "유튜브 통계 조회",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        100
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "2",
+          "name": "YouTube Data API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7d156216-4bfd-48fb-9d8f-7d75510888d9",
+              "name": "그룹명",
+              "type": "string",
+              "value": "={{ $('1건씩 처리').item.json.그룹명 }}"
+            },
+            {
+              "id": "ceb8f381-b73b-415f-bb0f-04ddc64d84bd",
+              "name": "앨범명",
+              "type": "string",
+              "value": "={{ $('1건씩 처리').item.json.앨범명 }}"
+            },
+            {
+              "id": "d023e8b2-dc6e-468a-a730-cea81b6f3b43",
+              "name": "발매일",
+              "type": "string",
+              "value": "={{ $('1건씩 처리').item.json.발매일 }}"
+            },
+            {
+              "id": "9d9d4f3a-ed68-4e81-abd9-f1781d04f515",
+              "name": "유튜브_티저_조회수",
+              "type": "number",
+              "value": "={{ $json.items[0].statistics.viewCount }}"
+            },
+            {
+              "id": "149a1883-ff17-4747-846d-0f833557f13b",
+              "name": "유튜브_티저_댓글수",
+              "type": "number",
+              "value": "={{ $json.items[0].statistics.commentCount ?? null }}"
+            },
+            {
+              "id": "5c7d6f85-270e-4ccd-a2b6-8fa9f3ff55e6",
+              "name": "유튜브_티저_좋아요수",
+              "type": "number",
+              "value": "={{ $json.items[0].statistics.likeCount ?? null }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4560d5fa-204a-4681-86ef-734512e10eaf",
+      "name": "조회수·좋아요·댓글수 정리",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "40be006c-0eac-4eb9-8311-64b6746fac70",
+              "name": "그룹명",
+              "type": "string",
+              "value": "={{ $('1건씩 처리').item.json.그룹명 }}"
+            },
+            {
+              "id": "2511cca7-6e22-487b-8181-ad06012c768c",
+              "name": "앨범명",
+              "type": "string",
+              "value": "={{ $('1건씩 처리').item.json.앨범명 }}"
+            },
+            {
+              "id": "c6d2fa6b-114b-44dd-82a0-347624a78822",
+              "name": "발매일",
+              "type": "string",
+              "value": "={{ $('1건씩 처리').item.json.발매일 }}"
+            },
+            {
+              "id": "eaa203e6-bac4-47b1-abd9-85f4d5861cae",
+              "name": "유튜브_티저_조회수",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "ac81eb21-3393-42ba-a3d3-2ccf9df07edb",
+              "name": "유튜브_티저_댓글수",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "b0e18b0d-920e-4680-8b76-17f3f6e09ad3",
+              "name": "유튜브_티저_좋아요수",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5b7cff9e-6347-4fed-b832-843e012f6955",
+      "name": "영상 없음 처리",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.spreadsheetId }}",
+          "mode": "list",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "output",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "그룹명",
+            "앨범명"
+          ]
+        },
+        "options": {}
+      },
+      "id": "87d20866-2a80-4f33-add3-a492a104834a",
+      "name": "결과 저장",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        820,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "id": "4d8ec65a-6796-4e6c-9fbb-8c66869a75bb",
+      "name": "호출 간격 대기",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1060,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "0b579636-af06-4ee6-87cf-15740ca0c8b8",
+      "name": "완료",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -660,
+        560
+      ]
+    }
+  ],
+  "connections": {
+    "수동 실행": {
+      "main": [
+        [
+          {
+            "node": "앨범 목록 불러오기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "앨범 목록 불러오기": {
+      "main": [
+        [
+          {
+            "node": "발매일 필터",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1건씩 처리": {
+      "main": [
+        [
+          {
+            "node": "유튜브 티저 영상 검색",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "완료",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "유튜브 티저 영상 검색": {
+      "main": [
+        [
+          {
+            "node": "가장 적합한 영상 선택",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "가장 적합한 영상 선택": {
+      "main": [
+        [
+          {
+            "node": "영상 찾음?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 찾음?": {
+      "main": [
+        [
+          {
+            "node": "유튜브 통계 조회",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "영상 없음 처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "유튜브 통계 조회": {
+      "main": [
+        [
+          {
+            "node": "조회수·좋아요·댓글수 정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "조회수·좋아요·댓글수 정리": {
+      "main": [
+        [
+          {
+            "node": "결과 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 없음 처리": {
+      "main": [
+        [
+          {
+            "node": "결과 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "결과 저장": {
+      "main": [
+        [
+          {
+            "node": "호출 간격 대기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "호출 간격 대기": {
+      "main": [
+        [
+          {
+            "node": "1건씩 처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "발매일 필터": {
+      "main": [
+        [
+          {
+            "node": "1건씩 처리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "fnc-youtube-teaser-collector"
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
